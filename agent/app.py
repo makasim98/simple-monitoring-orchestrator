@@ -1,17 +1,16 @@
 from flask import Flask, request, jsonify
+from metrics import gather_metrics, get_sysinfo
 
-app = Flask("ovserver-agent")
+app = Flask("observer-agent")
 
 # Get status of the machine
-@app.route('/status')
+@app.route('/status', methods=['GET'])
 def status():
-    return jsonify
+    return jsonify(get_sysinfo())
 
 # Retrieve metrics from the machine
 @app.route('/metrics', methods=['GET'])
 def metrics():
-    return "<h1>Orchestrator Dashboard!!!</h1>" # return HTML
-
-
+    return jsonify(gather_metrics())
 
 app.run(host="0.0.0.0", port=5000, debug=True)
