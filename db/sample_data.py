@@ -3,7 +3,7 @@ import random
 from datetime import datetime, timedelta
 
 # Connect to the database
-con = sqlite3.connect("monitoring-orchestrator.db")
+con = sqlite3.connect("db/monitoring-database.db")
 cur = con.cursor()
 
 # --- Insert 5 rows into Thresholds table ---

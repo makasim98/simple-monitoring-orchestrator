@@ -1,6 +1,7 @@
 # Generated docker image
 docker_image/
 auth/
+logs/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

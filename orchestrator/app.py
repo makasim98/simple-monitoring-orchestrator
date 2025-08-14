@@ -2,8 +2,10 @@ from os import read
 from flask import Flask, jsonify, render_template_string, request
 from scraper import init_scraper
 import sqlite3
+from db.db import init_db, get_db_connection
 
 app = Flask("Orchestrator")
+init_db()
 init_scraper()
 
 monitored_endpoints = {}
@@ -36,7 +38,7 @@ class Endpoint:
 def load_endpoints_from_db():
     global monitored_endpoints
     monitored_endpoints = {}
-    con = sqlite3.connect("monitoring-orchestrator.db")
+    con = get_db_connection()
     cur = con.cursor()
     
     # Select all remote entries with their associated thresholds and credentials
