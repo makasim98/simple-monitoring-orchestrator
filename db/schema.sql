@@ -1,5 +1,5 @@
 -- Drop tables if they exist to allow for re-initialization
-DROP TABLE IF EXISTS Tresholds;
+DROP TABLE IF EXISTS Thresholds;
 DROP TABLE IF EXISTS Status;
 DROP TABLE IF EXISTS Credentials;
 DROP TABLE IF EXISTS Metrics;

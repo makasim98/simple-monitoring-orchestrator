@@ -87,24 +87,36 @@ def dashboard():
     <h1>Orchestrator Dashboard</h1>
     <p>Manage your monitored endpoints here.</p>
 
+    
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; width: 1000px; margin: 40px auto;">
     {% for endpoint_id, endpoint in monitored_endpoints.items() %}
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; width: 600px; margin: 40px auto;">
+ 
             <a href="/info/{{ endpoint_id }}" style="text-decoration: none; color: black;">
-                <div style="background: #ffffff; border: 1px solid #000000; height: 100px; display: flex; align-items: center; justify-content: center; padding: 4px; box-shadow: 2px 2px 5px rgba(0,0,0,0.2);">
+                {% if endpoint.is_deployed %}
+                <div style="background: #1DBC60; border: 1px solid #000000; height: 100px; display: flex; align-items: center; justify-content: center; padding: 4px; box-shadow: 2px 2px 5px rgba(0,0,0,0.2);">
                     <p><strong>{{ endpoint.name }}</strong></p>
                     <p>CPU: {{ endpoint.cpu_usage }}%</p>
                     <p>Memory: {{ endpoint.memory_usage }}%</p>
                     <p>Disk: {{ endpoint.disk_usage }}%</p>
+                    <p>Status: UP</p>
                 </div>
+                {% else %}
+                <div style="background: #FF4C4C; border: 1px solid #000000; height: 100px; display: flex; align-items: center; justify-content: center; padding: 4px; box-shadow: 2px 2px 5px rgba(0,0,0,0.2);">
+                    <p><strong>{{ endpoint.name }}</strong></p>
+                    <p>Status: DOWN</p>
+                </div>
+                {% endif %}
             </a>
-        </div>
+   
     {% endfor %}
+    </div>
     '''
     return render_template_string(html_template, monitored_endpoints=monitored_endpoints)
 
 # Endpoint information page
 @app.route('/info/<int:endpoint_id>')
 def endpoint_info(endpoint_id):
+    load_endpoints_from_db()
     endpoint = monitored_endpoints.get(endpoint_id)
     if not endpoint:
         return jsonify({"error": "Endpoint not found"}), 404
@@ -115,6 +127,12 @@ def endpoint_info(endpoint_id):
         "name": endpoint.name,
         "username": endpoint.username,
         "password": endpoint.password,
+        "identity_keys": endpoint.identity_keys,
+        "timestamp": endpoint.timestamp,
+        "is_deployed": endpoint.is_deployed,
+        "cpu_usage": endpoint.cpu_usage,
+        "memory_usage": endpoint.memory_usage,
+        "disk_usage": endpoint.disk_usage,
         "thresholds": {
             "cpu": endpoint.thresholds.cpu,
             "memory": endpoint.thresholds.memory,
@@ -126,7 +144,16 @@ def endpoint_info(endpoint_id):
 # Get endpoints monitored by the Orchestrator
 @app.route('/endpoints', methods=['GET'])
 def get_endpoints():
-    return jsonify(monitored_endpoints)
+    load_endpoints_from_db()
+
+    endpoints_list = {}
+    for endpoint_id, endpoint in monitored_endpoints.items():
+        endpoints_list[endpoint_id] = {
+            "name": endpoint.name,
+            "url": endpoint.url,
+            "is_deployed": endpoint.is_deployed
+        }
+    return jsonify(endpoints_list)
 
 
 # ADD New Endpoint to the monitored APIs
@@ -177,18 +204,37 @@ def remove_client(url):
     return "<h1>UN-DEPLOYING</h1>" # return HTML
 
 # Set resource thresholds
-@app.route('/thresholds/<url>', methods=['POST'])
-def set_thresholds(url):
-    if url not in monitored_endpoints:
+@app.route('/thresholds/<int:endpoint_id>', methods=['POST'])
+def set_thresholds(endpoint_id):
+    load_endpoints_from_db()
+    endpoint = monitored_endpoints.get(endpoint_id)
+
+    if not endpoint:
         return jsonify({"error": "Endpoint not found"}), 404
 
-    # Get the new thresholds from the request
     new_thresholds = request.json
-    monitored_endpoints[url].cpu_threshold = new_thresholds.get("cpu", monitored_endpoints[url].cpu_threshold)
-    monitored_endpoints[url].memory_threshold = new_thresholds.get("memory", monitored_endpoints[url].memory_threshold)
-    monitored_endpoints[url].disk_threshold = new_thresholds.get("disk", monitored_endpoints[url].disk_threshold)
+    if not new_thresholds:
+        return jsonify({"error": "Invalid JSON data"}), 400
 
-    return "<h1>SET THRESHOLDS</h1>" # return HTML
+    con = get_db_connection()
+    cur = con.cursor()
+    cur.execute("SELECT threshold_id FROM Remotes WHERE remote_id = ?", (endpoint_id,))
+    threshold_id = cur.fetchone()[0]
+    
+    cpu = new_thresholds.get('cpu', endpoint.thresholds.cpu)
+    memory = new_thresholds.get('memory', endpoint.thresholds.memory)
+    disk = new_thresholds.get('disk', endpoint.thresholds.disk)
+
+    cur.execute("UPDATE Thresholds SET cpu_percentage = ?, mem_percentage = ?, disk_percentage = ? WHERE threshold_id = ?",
+                (cpu, memory, disk, threshold_id))
+    con.commit()
+    con.close()
+
+    endpoint.thresholds.cpu = cpu
+    endpoint.thresholds.memory = memory
+    endpoint.thresholds.disk = disk
+
+    return jsonify({"message": f"Thresholds for endpoint '{endpoint.name}' updated successfully."}), 200
 
 
 
