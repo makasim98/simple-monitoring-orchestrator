@@ -1,4 +1,5 @@
 import psutil, time
+from datetime import datetime, timezone
 
 def get_sysinfo():
     os = 'Other'
@@ -28,6 +29,7 @@ def gather_metrics():
     mem_usage = get_mem()
     disk_usage = get_disk()
     return {
+        'timestamp': datetime.now(timezone.utc).isoformat(),
         "cpu": cpu_load,
         "mem": mem_usage,
         "disk": disk_usage

@@ -1,8 +1,10 @@
 from os import read
 from flask import Flask, jsonify, render_template_string, request
+from scraper import init_scraper
 import sqlite3
 
 app = Flask("Orchestrator")
+init_scraper()
 
 monitored_endpoints = {}
 

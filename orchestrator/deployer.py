@@ -4,6 +4,9 @@ from util import *
 from db_stub import get_deployment_profile
 from config import IMAGE_NAME, LOCAL_PATH, REMOTE_PATH, BUILD_CONTEXT
 
+# The target host must configure passwordles sudo for apt, systemctl, dokcer and usermod
+# ```echo "$USER ALL=(ALL) NOPASSWD: /usr/bin/apt-get, /usr/bin/systemctl, /usr/sbin/usermod" | sudo tee /etc/sudoers.d/docker-install```
+
 # Orchestrates monitoring agent (container) deployment on remote machines
 def deploy_agent(profile_id: int):
     profile = get_deployment_profile(profile_id)
