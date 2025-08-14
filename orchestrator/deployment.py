@@ -1,0 +1,119 @@
+from paramiko import SSHClient
+from pathlib import Path
+from util import connect_to_remote, run_remote_commands, run_local_commands, get_remote_pkgm
+from db_stub import get_deployment_profile
+from config import IMAGE_NAME, LOCAL_PATH, REMOTE_PATH, BUILD_CONTEXT
+
+# Orchestrates monitoring agent (container) deployment on remote machines
+def deploy_agent(profile_id: int):
+    profile = get_deployment_profile(profile_id)
+    if not profile:
+        raise ValueError(f"No deployment profile found for ID: {profile_id}")
+    
+    ssh_user = profile['auth']['ssh_user']
+    ssh_pass = profile['auth']['ssh_password']
+    ssh_idFile = profile['auth']['ssh_identity_file']
+    remote_host = profile['host']['hostname']
+
+    try:
+        image_tag = build_and_save_agent_image()
+        ssh_client = connect_to_remote(hostname=remote_host, username=ssh_user, password=ssh_pass, key_filename=ssh_idFile)
+   
+        if check_and_install_docker(ssh_client):
+            ssh_client.close()
+            ssh_client = connect_to_remote(hostname=remote_host, username=ssh_user, password=ssh_pass, key_filename=ssh_idFile)
+
+        transfer_image(ssh_client)
+        load_and_run_container(ssh_client, image_tag)
+        
+        print("\nSUCCESS: Deployment completed successfully!")
+        
+    except Exception as e:
+        print(f"\nERROR: An error occurred during deployment: {e}")
+    finally:
+        if 'ssh_client' in locals() and ssh_client:
+            ssh_client.close()
+            print("SSH connection closed.")
+
+
+def build_and_save_agent_image():
+    image_tag = f"{IMAGE_NAME}:latest"
+    local_image_path = Path(LOCAL_PATH)
+    local_image_dir = local_image_path.parent
+
+    if Path(LOCAL_PATH).exists():
+        print(f"Docker image tar file '{local_image_path}' already exists. Skipping build and save step.")
+        return image_tag
+    
+    print(f"Docker image tar file '{local_image_path}' not found. Building and saving...")
+    local_image_dir.mkdir(exist_ok=True)
+    
+    commands = [
+        f"docker build -t {image_tag} {BUILD_CONTEXT}",
+        f"docker save -o {LOCAL_PATH} {image_tag}"
+    ]
+
+    run_local_commands(commands)
+
+    print(f"Docker image saved to {LOCAL_PATH}")
+    return image_tag
+
+
+def check_and_install_docker(ssh_client: SSHClient):
+    print("Checking for Docker installation on the remote host...")
+    try:
+        run_remote_commands(ssh_client, ["docker --version"])
+        print("Docker is already installed.")
+        return False
+    except Exception:
+        print("Docker is not installed. Attempting to install...")
+        os_type = get_remote_pkgm(ssh_client)
+
+        if os_type == "ubuntu":
+            commands = [
+                "sudo apt-get update && apt-get upgrade -y",
+                "sudo apt-get install -y docker.io"
+            ]
+        elif os_type == "rhel":
+            commands = [
+                "sudo yum install -y yum-utils",
+                "sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo",
+                "sudo yum install -y docker-ce docker-ce-cli containerd.io",
+            ]
+        else:
+            raise Exception("Installation failed: Unsupported OS type.")
+
+        commands.extend([
+            "sudo systemctl start docker",
+            "sudo systemctl enable docker",
+            "sudo usermod -aG docker $USER"
+        ])
+        run_remote_commands(ssh_client, commands)
+        print("Docker installed and configured. Reconnecting to apply new group membership...")
+        return True
+
+
+def transfer_image(ssh_client: SSHClient):
+    if not Path(LOCAL_PATH).exists():
+        raise FileNotFoundError(f"Local Docker image file not found: {LOCAL_PATH}")
+
+    print(f"Transferring {LOCAL_PATH} to remote {REMOTE_PATH}...")
+    try:
+        sftp = ssh_client.open_sftp()
+        sftp.put(LOCAL_PATH, REMOTE_PATH)
+        sftp.close()
+        print("File transferred successfully.")
+    except Exception as e:
+        raise Exception(f"SFTP file transfer failed: {e}")
+
+
+def load_and_run_container(ssh_client: SSHClient, image_tag: str):
+    print(f"Loading and running the Docker container on the remote host...")
+    commands = [
+        f"docker load -i {REMOTE_PATH}",
+        f"docker stop {IMAGE_NAME} || true",
+        f"docker rm {IMAGE_NAME} || true",
+        f"docker run -d --name {IMAGE_NAME} --restart unless-stopped --net=host -v /proc:/host/proc:ro --pid=host {image_tag}"
+    ]
+    run_remote_commands(ssh_client, commands)
+    print("Container started successfully.")
