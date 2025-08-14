@@ -1,6 +1,6 @@
 from paramiko import SSHClient
 from pathlib import Path
-from util import connect_to_remote, run_remote_commands, run_local_commands, get_remote_pkgm
+from util import *
 from db_stub import get_deployment_profile
 from config import IMAGE_NAME, LOCAL_PATH, REMOTE_PATH, BUILD_CONTEXT
 
@@ -67,22 +67,8 @@ def check_and_install_docker(ssh_client: SSHClient):
         return False
     except Exception:
         print("Docker is not installed. Attempting to install...")
-        os_type = get_remote_pkgm(ssh_client)
-
-        if os_type == "ubuntu":
-            commands = [
-                "sudo apt-get update && apt-get upgrade -y",
-                "sudo apt-get install -y docker.io"
-            ]
-        elif os_type == "rhel":
-            commands = [
-                "sudo yum install -y yum-utils",
-                "sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo",
-                "sudo yum install -y docker-ce docker-ce-cli containerd.io",
-            ]
-        else:
-            raise Exception("Installation failed: Unsupported OS type.")
-
+        os_type = get_remote_distro(ssh_client)
+        commands = get_docker_install_cmd(os_type)
         commands.extend([
             "sudo systemctl start docker",
             "sudo systemctl enable docker",

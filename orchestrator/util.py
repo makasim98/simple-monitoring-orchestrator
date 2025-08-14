@@ -52,21 +52,46 @@ def run_local_commands(commands: list[str]):
         except subprocess.CalledProcessError as e:
             raise Exception(f"Local command failed: '{command}'\nSTDOUT: {e.stdout}\nSTDERR: {e.stderr}")
         
-def get_remote_pkgm(ssh_client: paramiko.SSHClient) -> str:
-    print("Detecting remote package manager...")
+def get_remote_distro(ssh_client: paramiko.SSHClient) -> str:
+    print("Detecting remote OS distribution...")
     
     try:
-        # Check for apt (Ubuntu/Debian)
-        run_remote_commands(ssh_client, ["which apt"])
-        return "ubuntu"
-    except Exception:
-        pass
+        stdin, stdout, stderr = ssh_client.exec_command("cat /etc/os-release")
+        os_info = stdout.read().decode().strip()
 
-    try:
-        # Check for dnf/yum (RHEL/CentOS)
-        run_remote_commands(ssh_client, ["which yum || which dnf"])
-        return "rhel"
-    except Exception:
-        pass
+        if "Ubuntu" in os_info:
+            return "ubuntu"
+        elif "Debian" in os_info:
+            return "debian"
+        elif "Amazon Linux" in os_info:
+            return "amazon"
+        elif "Red Hat" in os_info or "CentOS" in os_info or "Fedora" in os_info:
+            return "rhel_family"
+        else:
+            raise Exception("Unsupported remote OS distribution.")
 
-    raise Exception("Unsupported remote OS type. Neither apt, yum, nor dnf were found.")
+    except Exception as e:
+         raise Exception(f"Failed to detect remote OS distribution: {e}")
+
+
+def get_docker_install_cmd(os: str) -> list[str]:   
+    match os:
+        case "ubuntu" | "debian":
+            return [
+                "sudo apt-get update",
+                "DEBIAN_FRONTEND=noninteractive sudo apt-get install -y docker.io",
+                "sudo systemctl start docker",
+            ]
+        case "amazon":
+            return [
+                "sudo dnf update -y",
+                "sudo dnf install -y docker",
+            ]
+        case "rhel_family":
+            return [
+                "sudo dnf install -y yum-utils device-mapper-persistent-data lvm2",
+                "sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo",
+                "sudo dnf install -y docker-ce docker-ce-cli containerd.io",
+            ]
+        case _:
+            raise ValueError(f"Unsupported distribution: {os}")
