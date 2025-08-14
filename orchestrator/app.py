@@ -86,7 +86,6 @@ def dashboard():
     <p>Manage your monitored endpoints here.</p>
 
     {% for endpoint_id, endpoint in monitored_endpoints.items() %}
-    <!-- <a href="/info/{{ endpoint_id }}"> Add Endpoint </a> -->
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; width: 600px; margin: 40px auto;">
             <a href="/info/{{ endpoint_id }}" style="text-decoration: none; color: black;">
                 <div style="background: #ffffff; border: 1px solid #000000; height: 100px; display: flex; align-items: center; justify-content: center; padding: 4px; box-shadow: 2px 2px 5px rgba(0,0,0,0.2);">
@@ -97,7 +96,6 @@ def dashboard():
                 </div>
             </a>
         </div>
-    <!-- </a> -->
     {% endfor %}
     '''
     return render_template_string(html_template, monitored_endpoints=monitored_endpoints)
