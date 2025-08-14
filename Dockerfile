@@ -1,24 +1,17 @@
 # Use an official Python runtime as a parent image
-FROM python:3.11-slim
+FROM python:slim-bookworm AS builder
 
-# Install uv globally
-RUN pip install uv
-
-# Set the working directory in the container
+# === Isolate agent from project and uv ===
 WORKDIR /app
-
-# Copy pyproject.toml and agent directory
+RUN pip install uv
 COPY pyproject.toml .
-COPY ./agent /app
+RUN uv pip compile pyproject.toml -o requirements.txt
 
-# Install dependencies using uv from the pyproject.toml file
-RUN uv sync
-
-# Expose the port on which the Flask app will run
+# === Build in a slimmer image ===
+FROM python:slim-bookworm
+WORKDIR /app
+COPY --from=builder /app/requirements.txt .
+RUN pip install -r requirements.txt
+COPY /agent /app
 EXPOSE 5000
-
-# Set an environment variable for Flask to run the app
-ENV FLASK_APP=app.py
-
-# Define the command to run the application using python -m flask
-CMD ["uv", "run", "app.py"]
+CMD ["python", "app.py"]
