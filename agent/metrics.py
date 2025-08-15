@@ -18,8 +18,7 @@ def get_sysinfo():
     return {
         "os": os,
         "cpu_cores": cpu_cores,
-        "cpu_freq": {"min": cpu_freq.min, "max": cpu_freq.max},
-        "total_mem": total_memory,
+        "total_memory": total_memory,
         "total_disk": total_disk,
         "status": 'UP' if uptime_mins > 1 else 'BOOTING'
     }

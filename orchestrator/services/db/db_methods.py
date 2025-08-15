@@ -1,37 +1,56 @@
 from .db_init import get_db_connection
 
 def get_deployment_profiles():
-    pass
+    conn = get_db_connection()
+    curs = conn.cursor()
+    curs.execute("SELECT * FROM Remotes AS R INNER JOIN Status AS S ON R.status_id = S.status_id")
+    profiles = curs.fetchall()
+    conn.close()
+    return profiles
+
 
 def get_deployment_profile(profile_id: int):
-    con = get_db_connection()
-    cur = con.cursor()
-
-    
-    cur.execute("""
+    conn = get_db_connection()
+    curs = conn.cursor()   
+    curs.execute("""
         SELECT R.hostname, C.ssh_user, C.ssh_pass, C.ssh_identity_file
         FROM Remotes as R
         INNER JOIN Credentials as C ON R.credential_id = C.credentials_id
         WHERE remote_id = ?
     """, (profile_id,))
-    deploy_profile = cur.fetchone() 
-    con.close()
-    
+    deploy_profile = curs.fetchone() 
+    conn.close() 
     return deploy_profile
 
-def update_deployment_status(profile_id: int, isDeployed: bool):
-    con = get_db_connection()
-    cur = con.cursor()
-    
-    cur.execute("""
-        UPDATE Status
-        SET is_deployed = ?
-        WHERE status_id = (
-            SELECT status_id
-            FROM Remotes
-            WHERE remote_id = ?
-        )
-    """, (isDeployed, profile_id))
-    
-    con.commit()
-    con.close()
+
+def save_deployment_metrics(profile_id: int, metrics: dict):
+    conn = get_db_connection()
+    curs = conn.cursor() 
+    curs.execute("""
+        INSERT INTO Metrics (remote_id, cpu_usage_percentage, memory_usage_percentage, disk_usage_percentage)
+        VALUES (?, ?, ?, ?)
+    """, (profile_id, metrics['cpu'], metrics['mem'], metrics['disk']))
+    conn.commit()
+    conn.close()
+
+def update_host_status(status_id: int, state: str, info=None):
+    conn = get_db_connection()
+    curs = conn.cursor()
+
+    if state == "UP" and info is not None:
+        curs.execute("""
+            UPDATE Status
+            SET state = ?, os = ?, cpu_cores = ?, total_memory = ?, total_disk = ?
+            WHERE status_id = ?
+        """, (state, info['os'], info['cpu_cores'], info['total_memory'], info['total_disk'], status_id))
+    else:
+        curs.execute("UPDATE Status SET state = ? WHERE status_id = ?", (state, status_id))
+    conn.commit()
+    conn.close()
+
+def update_deployment_status(status_id: int, isDeployed: bool):
+    conn = get_db_connection()
+    curs = conn.cursor()
+    curs.execute("UPDATE Status SET is_deployed = ? WHERE status_id = ?", (isDeployed, status_id))
+    conn.commit()
+    conn.close()

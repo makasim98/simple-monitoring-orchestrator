@@ -4,8 +4,8 @@ import requests
 from threading import Thread
 from datetime import datetime
 
-from db_stub import get_deployment_profiles, update_host_status, save_deployment_metrics, get_deployment_metrics
-from services.db.db_methods import get_deployment_profile
+# from db_stub import get_deployment_profiles, update_host_status, save_deployment_metrics, get_deployment_metrics
+from services.db.db_methods import get_deployment_profiles, update_host_status, save_deployment_metrics
 
 def init_scraper():
     thread = Thread(target=scrape_metrics_job, daemon=True)
@@ -27,10 +27,19 @@ def scrape_metrics_job():
         # Fetch the list of hosts from the database
         profiles = get_deployment_profiles()
         
-        for id, profile in profiles.items():
-            if profile['deployed']:
+        for profile in profiles:
+            if profile['is_deployed']:
                 try:
-                    hostname = profile['host']['hostname']
+                    hostname = profile['hostname']
+                    status_id = profile['status_id']
+
+                    if profile['state'] != 'UP':
+                        status_url = f"http://{hostname}:5000/status"
+                        logger.info(f"  Scraping status from {status_url}...")
+                        response = requests.get(status_url, timeout=5)
+                        response.raise_for_status() # Raise an exception for bad status codes (4xx or 5xx)
+                        update_host_status(status_id, "UP", response.json())
+
                     metrics_url = f"http://{hostname}:5000/metrics"
                     logger.info(f"  Scraping metrics from {metrics_url}...")
                     
@@ -39,17 +48,15 @@ def scrape_metrics_job():
                     
                     # Parse and save the metrics
                     metrics_data = response.json()
-                    save_deployment_metrics(id, metrics_data)
+                    save_deployment_metrics(profile['remote_id'], metrics_data)
                     
-                    # Update the host's status to UP
-                    update_host_status(id, "UP")
-                    logger.info(f"  Successfully scraped {hostname}. Status: UP.")     
-                    log_last_metrics(id, profile['host']['name'], metrics_data, logger)
+                    logger.info(f"Successfully scraped {hostname}. Status: UP.")     
+                    log_last_metrics(profile['name'], metrics_data, logger)
                 except requests.exceptions.RequestException as e:
-                    if profile['status']['state'] == 'UP':
-                        update_host_status(id, "DOWN")
+                    if profile['state'] == 'UP':
+                        update_host_status(status_id, "DOWN", None)
                         logger.error(f"  Failed to scrape {hostname}. Status: DOWN. Error: {e}")
         time.sleep(10)
 
-def log_last_metrics(id: int, name: str, metrics: dict, logger: logging.Logger):
+def log_last_metrics(name: str, metrics: dict, logger: logging.Logger):
     logger.info(f"{name}[CPU% - {metrics['cpu']}% | MEM% - {metrics['mem']}% | DISK% - {metrics['disk']}%]")         

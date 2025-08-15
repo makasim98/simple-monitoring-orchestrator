@@ -19,7 +19,7 @@ CREATE TABLE Status (
     state VARCHAR(10) NOT NULL DEFAULT 'UNKNOWN',
     os VARCHAR(10),
     cpu_cores INTEGER,
-    total_mem INTEGER,
+    total_memory INTEGER,
     total_disk INTEGER
     /* CHECK (
         (is_deployed = 0 AND state = 'UNKNOWN') 

@@ -9,14 +9,11 @@ from services.deployer import deploy_agent, remove_agent
 
 # TODO: REMOVE LATER AFTER REFATORING
 from models import Endpoint, Thresholds
+monitored_endpoints = {}
 
 app = Flask("Orchestrator")
 init_db()
 init_scraper()
-
-
-
-monitored_endpoints = {}
 
 # Function to load endpoints from the database
 def load_endpoints_from_db():
@@ -213,4 +210,4 @@ def set_thresholds(endpoint_id):
 
 
 # --------------------- Start the Flask App -----------------------
-app.run(host="0.0.0.0", port=5000, debug=True)
+app.run(host="0.0.0.0", port=5000)
