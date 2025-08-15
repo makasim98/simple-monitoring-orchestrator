@@ -16,10 +16,16 @@ CREATE TABLE Thresholds (
 CREATE TABLE Status (
     status_id INTEGER PRIMARY KEY AUTOINCREMENT,
     is_deployed BOOLEAN NOT NULL DEFAULT 0,
+    state VARCHAR(10) NOT NULL DEFAULT 'UNKNOWN',
     os VARCHAR(10),
     cpu_cores INTEGER,
     total_mem INTEGER,
     total_disk INTEGER
+    /* CHECK (
+        (is_deployed = 0 AND state = 'UNKNOWN') 
+        OR 
+        (is_deployed = 1 AND state IN ('UP', 'WARNING', 'DOWN'))
+    ) */
 );
 
 CREATE TABLE Credentials (

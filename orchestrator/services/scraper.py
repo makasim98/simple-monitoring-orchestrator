@@ -5,6 +5,7 @@ from threading import Thread
 from datetime import datetime
 
 from db_stub import get_deployment_profiles, update_host_status, save_deployment_metrics, get_deployment_metrics
+from services.db.db_methods import get_deployment_profile
 
 def init_scraper():
     thread = Thread(target=scrape_metrics_job, daemon=True)

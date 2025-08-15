@@ -10,7 +10,7 @@ class Endpoint:
         self.password = password
         self.identity_file = identity_file
         self.is_deployed = is_deployed
-        self.thresholds = thresholds if thresholds is not None else Thresholds()
+        self.thresholds = Thresholds(thresholds['cpu'], thresholds['memory'], thresholds['disk']) if thresholds is not None else Thresholds()
         self.timestamp = timestamp
         self.cpu_usage = cpu_usage
         self.memory_usage = memory_usage

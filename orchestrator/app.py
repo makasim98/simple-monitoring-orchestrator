@@ -1,6 +1,7 @@
 from os import read
+import sqlite3
 from flask import Flask, jsonify, render_template_string, request
-from services.configurator import add_endpoint  # Import the add_endpoint function
+from services.configurator import add_remote, remove_remote, set_endpoint_thresholds
 from services.scraper import init_scraper
 from services.db.db_init import init_db, get_db_connection
 from services.deployer import deploy_agent, remove_agent
@@ -138,28 +139,35 @@ def get_endpoints():
         }
     return jsonify(endpoints_list)
 
+
 # -------------------- Endpoint Management Endpoints ----------------
 @app.route('/add_endpoint', methods=['POST'])
 def add_new_endpoint():
     data = request.json
-
-    # Check for valid JSON data
     if not data:
-        return jsonify({"error": "Invalid JSON data"}), 400
-
+        return jsonify({"error": "No JSON data was provided for the endpoint"}), 400
     try:
-        endpoint = add_endpoint(data)
+        endpoint = add_remote(data)
         return jsonify({"message": f"Endpoint '{endpoint.name}' added successfully."}), 201
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
+    except sqlite3.Error as e:
+        return jsonify({"error": f"Database error: {e}"}), 500
+    except Exception as e:
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
 # Remove existing Endpoint from the monitored APIs
-@app.route('/remove_endpoint/<url>', methods=['DELETE'])
-def remove_endpoint(url):
-    if url in monitored_endpoints:
-        del monitored_endpoints[url]
-        return "<h1>REMOVING</h1>" # return HTML
-    return "<h1>NOT FOUND</h1>", 404
+@app.route('/remove_endpoint/<int:profile_id>', methods=['DELETE'])
+def remove_endpoint(profile_id):
+    try:
+        remove_remote(profile_id)
+        return jsonify({"message": f"Endpoint with ID {profile_id} removed successfully."}), 200
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except sqlite3.Error as e:
+        return jsonify({"error": f"Database error: {e}"}), 500
+    except Exception as e:
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
 
 # ----------------------- Deployment Endpoints -----------------------
@@ -176,7 +184,7 @@ def deploy_remote_agent(profile_id):
 
 # TODO: Implement actual removal logic
 # Remove monitoring client from target remote server/vm
-@app.route('/un-deploy/<int:profile_id>')
+@app.route('/un-deploy/<int:profile_id>', methods=['DELETE'])
 def remove_deployed_client(profile_id):
     try:
         remove_agent(profile_id)
@@ -188,38 +196,21 @@ def remove_deployed_client(profile_id):
 
 
 # --------------------- Thresholds Endpoints -----------------------
-@app.route('/thresholds/<int:endpoint_id>', methods=['POST'])
+@app.route('/thresholds/<int:endpoint_id>', methods=['PUT'])
 def set_thresholds(endpoint_id):
-    load_endpoints_from_db()
-    endpoint = monitored_endpoints.get(endpoint_id)
-
-    if not endpoint:
-        return jsonify({"error": "Endpoint not found"}), 404
-
-    new_thresholds = request.json
-    if not new_thresholds:
-        return jsonify({"error": "Invalid JSON data"}), 400
-
-    con = get_db_connection()
-    cur = con.cursor()
-    cur.execute("SELECT threshold_id FROM Remotes WHERE remote_id = ?", (endpoint_id,))
-    threshold_id = cur.fetchone()[0]
-    
-    cpu = new_thresholds.get('cpu', endpoint.thresholds.cpu)
-    memory = new_thresholds.get('memory', endpoint.thresholds.memory)
-    disk = new_thresholds.get('disk', endpoint.thresholds.disk)
-
-    cur.execute("UPDATE Thresholds SET cpu_percentage = ?, mem_percentage = ?, disk_percentage = ? WHERE threshold_id = ?",
-                (cpu, memory, disk, threshold_id))
-    con.commit()
-    con.close()
-
-    endpoint.thresholds.cpu = cpu
-    endpoint.thresholds.memory = memory
-    endpoint.thresholds.disk = disk
-
-    return jsonify({"message": f"Thresholds for endpoint '{endpoint.name}' updated successfully."}), 200
+    try:
+        new_thresholds = request.json
+        if not new_thresholds:
+            return jsonify({"error": "JSON Body cannot be empty!"}), 400
+        endpoint_name = set_endpoint_thresholds(endpoint_id, new_thresholds)
+        return jsonify({"message": f"Thresholds for endpoint '{endpoint_name}' updated successfully."}), 200
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except sqlite3.Error as e:
+        return jsonify({"error": f"Database error: {e}"}), 500
+    except Exception as e:
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
 
-
+# --------------------- Start the Flask App -----------------------
 app.run(host="0.0.0.0", port=5000, debug=True)

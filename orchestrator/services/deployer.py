@@ -1,8 +1,6 @@
 from paramiko import SSHClient
 from pathlib import Path
 from services.util import run_local_commands, connect_to_remote, run_remote_commands, get_remote_distro, get_docker_install_cmd
-
-# from db_stub import get_deployment_profile
 from services.db.db_methods import get_deployment_profile, update_deployment_status
 
 IMAGE_NAME="monitoring-agent"
