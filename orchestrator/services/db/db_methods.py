@@ -3,7 +3,12 @@ from .db_init import get_db_connection
 def get_deployment_profiles():
     conn = get_db_connection()
     curs = conn.cursor()
-    curs.execute("SELECT * FROM Remotes AS R INNER JOIN Status AS S ON R.status_id = S.status_id")
+    curs.execute("""
+        SELECT * 
+        FROM Remotes AS R      
+        INNER JOIN Status AS S ON R.status_id = S.status_id
+        INNER JOIN Thresholds AS T ON R.threshold_id = T.threshold_id
+    """)
     profiles = curs.fetchall()
     conn.close()
     return profiles
