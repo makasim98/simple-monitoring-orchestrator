@@ -35,7 +35,7 @@ def scrape_metrics_job():
                     hostname = profile['hostname']
                     status_id = profile['status_id']
 
-                    if profile['state'] != 'UP':
+                    if profile['state'] not in ['UP', 'WARNING']:
                         status_url = f"http://{hostname}:5000/status"
                         logger.info(f"  Scraping status from {status_url}...")
                         response = requests.get(status_url, timeout=5)
@@ -64,4 +64,4 @@ def scrape_metrics_job():
         time.sleep(SCRAPING_INTERVAL)
 
 def log_last_metrics(name: str, metrics: dict, logger: logging.Logger):
-    logger.info(f"{name}[CPU% - {metrics['cpu']}% | MEM% - {metrics['mem']}% | DISK% - {metrics['disk']}%]")         
+    logger.info(f"{name}[CPU% - {metrics['cpu_percent']}% | MEM% - {metrics['mem_percent']}% | DISK% - {metrics['disk_percent']}%]")         

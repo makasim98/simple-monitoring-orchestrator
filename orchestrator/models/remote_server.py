@@ -2,7 +2,7 @@ from .tresholds import Thresholds
 class Endpoint:
     def __init__(
             self, hostname, name, username, password, identity_file,thresholds=None,
-            is_deployed=False, timestamp=None, cpu_usage=None, memory_usage=None, disk_usage=None
+            is_deployed=False, timestamp=None, cpu_usage=None, memory_usage=None, disk_usage=None, status=None
         ):
         self.name = name
         self.hostname = hostname
@@ -15,3 +15,4 @@ class Endpoint:
         self.cpu_usage = cpu_usage
         self.memory_usage = memory_usage
         self.disk_usage = disk_usage
+        self.status = status

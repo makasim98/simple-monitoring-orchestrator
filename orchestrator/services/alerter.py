@@ -30,9 +30,9 @@ class Alerter:
         status_id = profile['status_id']
         current_state = profile['state']
 
-        cpu_ok = metrics['cpu'] <= profile['cpu_percentage']
-        mem_ok = metrics['mem'] <= profile['mem_percentage']
-        disk_ok = metrics['disk'] <= profile['disk_percentage']
+        cpu_ok = metrics['cpu_percent'] <= profile['cpu_percentage']
+        mem_ok = metrics['mem_percent'] <= profile['mem_percentage']
+        disk_ok = metrics['disk_percent'] <= profile['disk_percentage']
         
         if not cpu_ok or not mem_ok or not disk_ok:
             # Threshold exceeded, change status to 'WARNING' if not already there
@@ -40,9 +40,9 @@ class Alerter:
                 update_host_status(status_id, "WARNING", None)
                 message = f"""
                     ALERT: Resource threshold exceeded for host '{host_name}'.\n\n
-                    CPU Usage: {metrics['cpu']}% (Threshold: {profile['cpu_percentage']}%) \n
-                    Memory Usage: {metrics['mem']}% (Threshold: {profile['mem_percentage']}%) \n
-                    Disk Usage: {metrics['disk']}% (Threshold: {profile['disk_percentage']}%) \n
+                    CPU Usage: {metrics['cpu_percent']}% (Threshold: {profile['cpu_percentage']}%) \n
+                    Memory Usage: {metrics['mem_percent']}% (Threshold: {profile['mem_percentage']}%) \n
+                    Disk Usage: {metrics['disk_persent']}% (Threshold: {profile['disk_percentage']}%) \n
                 """
                 self.logger.warning(f"Threshold exceeded for {host_name}. Sending alert.")
                 if(time.time() - self.last_alert_time > NEXT_EMAIL_DELAY):

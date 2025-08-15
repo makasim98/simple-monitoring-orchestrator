@@ -8,7 +8,7 @@ from services.deployer import deploy_agent, remove_agent
 
 
 # TODO: REMOVE LATER AFTER REFATORING
-from models import Endpoint, Thresholds
+from models import Endpoint, Thresholds, EndpointInfo
 monitored_endpoints = {}
 
 app = Flask("Orchestrator")
@@ -28,7 +28,7 @@ def load_endpoints_from_db():
             R.remote_id, R.hostname, R.name,
             C.ssh_user, C.ssh_pass, C.ssh_identity_file,
             T.cpu_percentage, T.mem_percentage, T.disk_percentage,
-            S.isDeployed,
+            S.is_deployed, S.state,
             MAX(M.timestamp), M.cpu_usage_percentage, M.memory_usage_percentage, M.disk_usage_percentage
         FROM Remotes AS R
         LEFT JOIN Credentials AS C ON R.credential_id = C.credentials_id
@@ -41,8 +41,9 @@ def load_endpoints_from_db():
     endpoints_data = cur.fetchall()
     
     for row in endpoints_data:
-        remote_id, hostname, name, username, password, identity_file, cpu_threshold, memory_threshold, disk_threshold, is_deployed, timestamp, cpu_usage, memory_usage, disk_usage = row
-        thresholds = Thresholds(cpu=cpu_threshold, memory=memory_threshold, disk=disk_threshold)
+        rd = dict(row)
+        remote_id, hostname, name, username, password, identity_file, cpu_threshold, memory_threshold, disk_threshold, is_deployed, status, timestamp, cpu_usage, memory_usage, disk_usage = row
+        thresholds = {"cpu": cpu_threshold, "memory": memory_threshold, "disk": disk_threshold}
         monitored_endpoints[remote_id] = Endpoint(
             hostname=f"{hostname}:5000",
             name=name,
@@ -52,9 +53,10 @@ def load_endpoints_from_db():
             thresholds=thresholds,
             is_deployed=bool(is_deployed),
             timestamp=timestamp,
-            cpu_usage=cpu_usage,
-            memory_usage=memory_usage,
-            disk_usage=disk_usage
+            cpu_usage= cpu_usage if status in ['UP', 'WARNING'] else "-",
+            memory_usage=memory_usage if status in ['UP', 'WARNING'] else "-",
+            disk_usage=disk_usage if status in ['UP', 'WARNING'] else "-",
+            status=status
         )
     
     con.close()
@@ -64,35 +66,22 @@ def dashboard():
     
     load_endpoints_from_db()  # Load endpoints from the database
     # Render the dashboard with monitored endpoints
-    html_template = '''
-    <h1>Orchestrator Dashboard</h1>
-    <p>Manage your monitored endpoints here.</p>
+    endpoints = []
+    for endpoint_id, endpoint in monitored_endpoints.items():
+        endpoints.append({
+            "id": endpoint_id,
+            "name": endpoint.name,
+            "hostname": endpoint.hostname,
+            "cpu_usage": endpoint.cpu_usage,
+            "memory_usage": endpoint.memory_usage,
+            "disk_usage": endpoint.disk_usage,
+            "status": endpoint.status
+        })
 
-    
-    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; width: 1000px; margin: 40px auto;">
-    {% for endpoint_id, endpoint in monitored_endpoints.items() %}
- 
-            <a href="/info/{{ endpoint_id }}" style="text-decoration: none; color: black;">
-                {% if endpoint.is_deployed %}
-                <div style="background: #1DBC60; border: 1px solid #000000; height: 100px; display: flex; align-items: center; justify-content: center; padding: 4px; box-shadow: 2px 2px 5px rgba(0,0,0,0.2);">
-                    <p><strong>{{ endpoint.name }}</strong></p>
-                    <p>CPU: {{ endpoint.cpu_usage }}%</p>
-                    <p>Memory: {{ endpoint.memory_usage }}%</p>
-                    <p>Disk: {{ endpoint.disk_usage }}%</p>
-                    <p>Status: UP</p>
-                </div>
-                {% else %}
-                <div style="background: #FF4C4C; border: 1px solid #000000; height: 100px; display: flex; align-items: center; justify-content: center; padding: 4px; box-shadow: 2px 2px 5px rgba(0,0,0,0.2);">
-                    <p><strong>{{ endpoint.name }}</strong></p>
-                    <p>Status: DOWN</p>
-                </div>
-                {% endif %}
-            </a>
-   
-    {% endfor %}
-    </div>
-    '''
-    return render_template_string(html_template, monitored_endpoints=monitored_endpoints)
+    with open('orchestrator/templates/dashboard.html', 'r') as file:
+        html_template = file.read()
+
+    return render_template_string(html_template, endpoints=endpoints)
 
 # Endpoint information page
 @app.route('/info/<int:endpoint_id>')
@@ -102,24 +91,10 @@ def endpoint_info(endpoint_id):
     if not endpoint:
         return jsonify({"error": "Endpoint not found"}), 404
 
-    return jsonify({
-        "id": endpoint_id,
-        "url": endpoint.url,
-        "name": endpoint.name,
-        "username": endpoint.username,
-        "password": endpoint.password,
-        "identity_keys": endpoint.identity_keys,
-        "timestamp": endpoint.timestamp,
-        "is_deployed": endpoint.is_deployed,
-        "cpu_usage": endpoint.cpu_usage,
-        "memory_usage": endpoint.memory_usage,
-        "disk_usage": endpoint.disk_usage,
-        "thresholds": {
-            "cpu": endpoint.thresholds.cpu,
-            "memory": endpoint.thresholds.memory,
-            "disk": endpoint.thresholds.disk
-        }
-    })
+    with open('orchestrator/templates/endpoint-info.html', 'r') as file:
+        html_template1 = file.read()
+
+    return render_template_string(html_template1, endpoint=endpoint)
 
 
 # Get endpoints monitored by the Orchestrator

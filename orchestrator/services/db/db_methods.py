@@ -34,7 +34,7 @@ def save_deployment_metrics(profile_id: int, metrics: dict):
     curs.execute("""
         INSERT INTO Metrics (remote_id, cpu_usage_percentage, memory_usage_percentage, disk_usage_percentage)
         VALUES (?, ?, ?, ?)
-    """, (profile_id, metrics['cpu'], metrics['mem'], metrics['disk']))
+    """, (profile_id, metrics['cpu_percent'], metrics['mem_percent'], metrics['disk_percent']))
     conn.commit()
     conn.close()
 
@@ -47,13 +47,15 @@ def update_host_status(status_id: int, state: str, info=None):
             UPDATE Status
             SET state = ?, os = ?, cpu_cores = ?, total_memory = ?, total_disk = ?
             WHERE status_id = ?
-        """, (state, info['os'], info['cpu_cores'], info['total_memory'], info['total_disk'], status_id))
+        """, (state, info['os'], info['cpu_cores'], info['total_memory_bytes'], info['total_disk_bytes'], status_id))
     else:
         curs.execute("UPDATE Status SET state = ? WHERE status_id = ?", (state, status_id))
     conn.commit()
     conn.close()
 
 def update_deployment_status(status_id: int, isDeployed: bool):
+    if not isDeployed:
+        update_host_status(status_id, "UNKNOWN", None)
     conn = get_db_connection()
     curs = conn.cursor()
     curs.execute("UPDATE Status SET is_deployed = ? WHERE status_id = ?", (isDeployed, status_id))

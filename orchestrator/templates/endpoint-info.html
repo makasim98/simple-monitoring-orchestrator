@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="5">
+    <title>Endpoint {{endpoint.name}}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 p-8 min-h-screen font-sans">
+
+    <!-- Main Container -->
+    <div class="max-w-7xl mx-auto">
+        <header class="bg-white p-6 rounded-lg shadow-lg mb-8 flex flex-col sm:flex-row justify-between items-center">
+            <a href="/" class="px-3 py-2 bg-gray-200 text-gray-800 rounded-lg shadow hover:bg-gray-300 transition-colors duration-200 text-xl font-bold">
+                &larr;
+            </a>
+            <h1 class="text-3xl font-bold text-gray-900">{{ endpoint.name }}</h1>
+            <p class="text-gray-500 mt-2 sm:mt-0">{{ endpoint.hostname }}</p>
+        </header>
+        
+        <!-- Metrics Section -->
+        <div class="bg-white p-6 rounded-lg shadow-lg mb-8">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Current Metrics</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-center">
+                <div class="bg-blue-50 p-6 rounded-lg shadow-inner">
+                    <h3 class="text-xl font-medium mb-2">CPU Usage</h3>
+                    <p class="text-4xl font-bold text-blue-600">{{ endpoint.cpu_usage }}%</p>
+                </div>
+                <div class="bg-yellow-50 p-6 rounded-lg shadow-inner">
+                    <h3 class="text-xl font-medium mb-2">Memory Usage</h3>
+                    <p class="text-4xl font-bold text-yellow-600">{{ endpoint.memory_usage }}%</p>
+                </div>
+                <div class="bg-red-50 p-6 rounded-lg shadow-inner">
+                    <h3 class="text-xl font-medium mb-2">Disk Usage</h3>
+                    <p class="text-4xl font-bold text-red-600">{{ endpoint.disk_usage }}%</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Configuration & Status Section -->
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Configuration & Status</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="bg-gray-50 p-6 rounded-lg shadow-inner">
+                    <h3 class="text-xl font-medium mb-2">Thresholds</h3>
+                    <ul class="text-gray-700 space-y-2">
+                        <li><span class="font-semibold">CPU:</span> {{ endpoint.thresholds.cpu }}%</li>
+                        <li><span class="font-semibold">Memory:</span> {{ endpoint.thresholds.memory }}%</li>
+                        <li><span class="font-semibold">Disk:</span> {{ endpoint.thresholds.disk }}%</li>
+                    </ul>
+                </div>
+                <div class="bg-gray-50 p-6 rounded-lg shadow-inner text-center">
+                    <h3 class="text-xl font-medium mb-2">Last Scraped</h3>
+                    <p class="text-gray-700 font-bold text-xl">{{ endpoint.timestamp }}</p>
+                </div>
+                <div class="bg-gray-50 p-6 rounded-lg shadow-inner text-center">
+                    <h3 class="text-xl font-medium mb-2">Current State</h3>
+                   <p class="font-bold text-2xl px-2 py-1 rounded-full
+                               {% if endpoint.status == 'UP' %} bg-green-200 text-green-800
+                               {% elif endpoint.status == 'DOWN' %} bg-red-100 text-red-800
+                               {% elif endpoint.status == 'WARNING' %} bg-yellow-100 text-yellow-800
+                               {% else %} bg-gray-200 text-gray-600
+                               {% endif %}">
+                        {{ endpoint.status }}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

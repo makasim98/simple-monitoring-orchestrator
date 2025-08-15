@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="5">
+    <title>Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        /* Custom styles for status indicators */
+        .status-up {
+            background-color: #d1fae5; /* green-100 */
+            color: #065f46; /* green-800 */
+        }
+        .status-down {
+            background-color: #fee2e2; /* red-100 */
+            color: #991b1b; /* red-800 */
+        }
+        .status-warning {
+            background-color: #fffbeb; /* yellow-100 */
+            color: #92400e; /* yellow-800 */
+        }
+        .status-unknown {
+            background-color: #e5e7eb; /* gray-200 */
+            color: #4b5563; /* gray-600 */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 p-8 min-h-screen font-sans">
+
+    <!-- Main Container -->
+    <div class="max-w-7xl mx-auto">
+        <header class="bg-white p-6 rounded-lg shadow-lg mb-8 text-center">
+            <h1 class="text-3xl font-bold text-gray-900">Deployment Dashboard</h1>
+            <p class="text-gray-500 mt-2">At-a-glance view of all monitored endpoints</p>
+        </header>
+
+        <!-- Deployment Cards Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+
+            <!-- Loop through the list of endpoints passed from your Flask app -->
+            {% for endpoint in endpoints %}
+                <div class="bg-white p-6 rounded-lg shadow-lg border border-gray-200 flex flex-col">
+                    <!-- Status Tag -->
+                    <div class="px-3 py-1 rounded-full text-xs font-semibold self-start mb-4
+                                {% if endpoint['status'] == 'UP' %} status-up
+                                {% elif endpoint['status'] == 'DOWN' %} status-down
+                                {% elif endpoint['status'] == 'WARNING' %} status-warning
+                                {% else %} status-unknown
+                                {% endif %}">
+                        {{ endpoint['status'] }}
+                    </div>
+
+                    <h2 class="text-xl font-semibold text-gray-900 mb-1">{{ endpoint['name'] }}</h2>
+                    <p class="text-gray-500 text-sm mb-4">{{ endpoint['hostname'] }}</p>
+                    
+                    <div class="flex-grow space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-gray-700 font-medium">CPU Usage:</span>
+                            <span class="text-lg font-bold text-blue-600">{{ endpoint['cpu_usage'] }}%</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-gray-700 font-medium">Memory Usage:</span>
+                            <span class="text-lg font-bold text-yellow-600">{{ endpoint['memory_usage'] }}%</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-gray-700 font-medium">Disk Usage:</span>
+                            <span class="text-lg font-bold text-red-600">{{ endpoint['disk_usage'] }}%</span>
+                        </div>
+                    </div>
+
+                    <!-- Add a link or button to view more details -->
+                    <a href="/info/{{ endpoint['id'] }}" 
+                       class="mt-6 text-center text-blue-600 font-semibold hover:underline">
+                        View Details
+                    </a>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</body>
+</html>

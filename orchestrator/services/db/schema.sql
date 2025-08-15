@@ -21,11 +21,11 @@ CREATE TABLE Status (
     cpu_cores INTEGER,
     total_memory INTEGER,
     total_disk INTEGER
-    /* CHECK (
+    CHECK (
         (is_deployed = 0 AND state = 'UNKNOWN') 
         OR 
-        (is_deployed = 1 AND state IN ('UP', 'WARNING', 'DOWN'))
-    ) */
+        (is_deployed = 1 AND state IN ('UP', 'WARNING', 'UNKNOWN', 'DOWN'))
+    )
 );
 
 CREATE TABLE Credentials (
