@@ -3,7 +3,7 @@ from flask import Flask, jsonify, render_template_string, request
 from services.configurator import add_endpoint  # Import the add_endpoint function
 from services.scraper import init_scraper
 from services.db.db_init import init_db, get_db_connection
-from services.deployer import deploy_agent
+from services.deployer import deploy_agent, remove_agent
 
 
 # TODO: REMOVE LATER AFTER REFATORING
@@ -138,6 +138,7 @@ def get_endpoints():
         }
     return jsonify(endpoints_list)
 
+# -------------------- Endpoint Management Endpoints ----------------
 @app.route('/add_endpoint', methods=['POST'])
 def add_new_endpoint():
     data = request.json
@@ -152,7 +153,16 @@ def add_new_endpoint():
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
 
-# Deploy monitoring client to target remote server/vm
+# Remove existing Endpoint from the monitored APIs
+@app.route('/remove_endpoint/<url>', methods=['DELETE'])
+def remove_endpoint(url):
+    if url in monitored_endpoints:
+        del monitored_endpoints[url]
+        return "<h1>REMOVING</h1>" # return HTML
+    return "<h1>NOT FOUND</h1>", 404
+
+
+# ----------------------- Deployment Endpoints -----------------------
 @app.route('/deploy/<int:profile_id>')
 def deploy_remote_agent(profile_id):
     try:
@@ -163,22 +173,21 @@ def deploy_remote_agent(profile_id):
     except Exception as e:
         return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
-# Remove existing Endpoint from the monitored APIs
-@app.route('/remove_endpoint/<url>', methods=['DELETE'])
-def remove_endpoint(url):
-    if url in monitored_endpoints:
-        del monitored_endpoints[url]
-        return "<h1>REMOVING</h1>" # return HTML
-    return "<h1>NOT FOUND</h1>", 404
 
-
-
+# TODO: Implement actual removal logic
 # Remove monitoring client from target remote server/vm
-@app.route('/un-deploy/<url>')
-def remove_client(url):
-    return "<h1>UN-DEPLOYING</h1>" # return HTML
+@app.route('/un-deploy/<int:profile_id>')
+def remove_deployed_client(profile_id):
+    try:
+        remove_agent(profile_id)
+        return jsonify({"message": f"Removal successful for profile ID: {profile_id}"}), 200
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
-# Set resource thresholds
+
+# --------------------- Thresholds Endpoints -----------------------
 @app.route('/thresholds/<int:endpoint_id>', methods=['POST'])
 def set_thresholds(endpoint_id):
     load_endpoints_from_db()

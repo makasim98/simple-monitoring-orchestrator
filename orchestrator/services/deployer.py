@@ -3,7 +3,7 @@ from pathlib import Path
 from services.util import run_local_commands, connect_to_remote, run_remote_commands, get_remote_distro, get_docker_install_cmd
 
 # from db_stub import get_deployment_profile
-from services.db.db_methods import get_deployment_profile
+from services.db.db_methods import get_deployment_profile, update_deployment_status
 
 IMAGE_NAME="monitoring-agent"
 FILE_NAME=f"{IMAGE_NAME}.tar"
@@ -37,9 +37,37 @@ def deploy_agent(profile_id: int):
         load_and_run_container(ssh_client, image_tag)
         
         print("\nSUCCESS: Deployment completed successfully!")
-        
+        update_deployment_status(profile_id, True)
     except Exception as e:
         print(f"\nERROR: An error occurred during deployment: {e}")
+    finally:
+        if 'ssh_client' in locals() and ssh_client:
+            ssh_client.close()
+            print("SSH connection closed.")
+
+# Orchestrates monitoring agent (container) removal from remote machines
+def remove_agent(profile_id: int):
+    profile = get_deployment_profile(profile_id)
+    if not profile:
+        raise ValueError(f"No deployment profile found for ID: {profile_id}")
+
+    remote_host = profile['hostname']
+    ssh_user = profile['ssh_user']
+    ssh_pass = profile['ssh_pass']
+    ssh_idFile = profile['ssh_identity_file'].decode('utf-8').strip() if profile['ssh_identity_file'] else None
+
+    try:
+        ssh_client = connect_to_remote(hostname=remote_host, username=ssh_user, password=ssh_pass, pKey=ssh_idFile)
+        commands = [
+            f"docker ps -q --filter 'name={IMAGE_NAME}' | xargs -r docker stop",
+            f"docker ps -aq --filter 'name={IMAGE_NAME}' | xargs -r docker rm",
+            f"docker images -q {IMAGE_NAME} | xargs -r docker rmi",
+        ]
+        run_remote_commands(ssh_client, commands)
+        print("\nSUCCESS: Agent removed successfully!")
+        update_deployment_status(profile_id, False)
+    except Exception as e:
+        print(f"\nERROR: An error occurred during removal: {e}")
     finally:
         if 'ssh_client' in locals() and ssh_client:
             ssh_client.close()
