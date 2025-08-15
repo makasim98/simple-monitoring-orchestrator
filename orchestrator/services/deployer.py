@@ -1,8 +1,15 @@
 from paramiko import SSHClient
 from pathlib import Path
-from util import *
-from db_stub import get_deployment_profile
-from config import IMAGE_NAME, LOCAL_PATH, REMOTE_PATH, BUILD_CONTEXT
+from services.util import run_local_commands, connect_to_remote, run_remote_commands, get_remote_distro, get_docker_install_cmd
+
+# from db_stub import get_deployment_profile
+from services.db.db_methods import get_deployment_profile
+
+IMAGE_NAME="monitoring-agent"
+FILE_NAME=f"{IMAGE_NAME}.tar"
+REMOTE_PATH=f"/tmp/{FILE_NAME}"
+LOCAL_PATH=f"docker_image/{FILE_NAME}"
+BUILD_CONTEXT='.'
 
 # The target host must configure passwordles sudo for apt, systemctl, dokcer and usermod
 # ```echo "$USER ALL=(ALL) NOPASSWD: /usr/bin/apt-get, /usr/bin/systemctl, /usr/sbin/usermod" | sudo tee /etc/sudoers.d/docker-install```
@@ -13,18 +20,18 @@ def deploy_agent(profile_id: int):
     if not profile:
         raise ValueError(f"No deployment profile found for ID: {profile_id}")
     
-    ssh_user = profile['auth']['ssh_user']
-    ssh_pass = profile['auth']['ssh_password']
-    ssh_idFile = profile['auth']['ssh_identity_file']
-    remote_host = profile['host']['hostname']
+    remote_host = profile['hostname']
+    ssh_user = profile['ssh_user']
+    ssh_pass = profile['ssh_pass']
+    ssh_idFile = profile['ssh_identity_file'].decode('utf-8').strip() if profile['ssh_identity_file'] else None
 
     try:
         image_tag = build_and_save_agent_image()
-        ssh_client = connect_to_remote(hostname=remote_host, username=ssh_user, password=ssh_pass, key_filename=ssh_idFile)
+        ssh_client = connect_to_remote(hostname=remote_host, username=ssh_user, password=ssh_pass, pKey=ssh_idFile)
    
         if check_and_install_docker(ssh_client):
             ssh_client.close()
-            ssh_client = connect_to_remote(hostname=remote_host, username=ssh_user, password=ssh_pass, key_filename=ssh_idFile)
+            ssh_client = connect_to_remote(hostname=remote_host, username=ssh_user, password=ssh_pass, pKey=ssh_idFile)
 
         transfer_image(ssh_client)
         load_and_run_container(ssh_client, image_tag)

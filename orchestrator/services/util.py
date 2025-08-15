@@ -1,16 +1,19 @@
+import io
 import subprocess
 import paramiko
 
 # Connect to the remote host with SSH. 
-def connect_to_remote(hostname: str, username: str, password=None, key_filename=None) -> paramiko.SSHClient:
+def connect_to_remote(hostname: str, username: str, password=None, pKey=None) -> paramiko.SSHClient:
     ssh_client = paramiko.SSHClient()
     ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     
     print(f"Connecting to {hostname}...")
     try:
-        if key_filename:
-            print(f"Using identity file: {key_filename}")
-            ssh_client.connect(hostname=hostname, username=username, key_filename=key_filename)
+        if pKey:
+            print(f"Using identity file:")
+            key_file_object = io.StringIO(pKey) 
+            private_key = paramiko.RSAKey.from_private_key(key_file_object)
+            ssh_client.connect(hostname=hostname, username=username, pkey=private_key)
         else:
             print("Using password authentication.")
             ssh_client.connect(hostname=hostname, username=username, password=password)

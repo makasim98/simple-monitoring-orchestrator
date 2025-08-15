@@ -2,8 +2,8 @@ import os
 import sqlite3
 
 # Define the paths for your database and schema files
-DATABASE_FILE = 'db/monitoring-database.db'
-SCHEMA_FILE = 'db/schema.sql'
+DATABASE_FILE = './orchestrator/services/db/orchestrator.db'
+SCHEMA_FILE = './orchestrator/services/db/schema.sql'
 
 def init_db():
     if not os.path.exists(DATABASE_FILE):
