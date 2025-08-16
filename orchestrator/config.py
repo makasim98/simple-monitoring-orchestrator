@@ -8,7 +8,7 @@ BUILD_CONTEXT='.'
 # -------------- ALERT CONFIGURATION --------------
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
-SMTP_USER = "maxluch98@gmail.com"
-SMTP_PASS = "prmgiekapmqdfkmz"
-RECIPIENT_EMAIL = "makasim.devtest@gmail.com"
+SMTP_USER = ""
+SMTP_PASS = ""
+RECIPIENT_EMAIL = ""
 NEXT_EMAIL_DELAY = 300  # seconds
